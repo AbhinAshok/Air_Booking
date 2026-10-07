@@ -15,6 +15,9 @@ import FlightsPage from './pages/FlightsPage';
 import MyTripsPage from './pages/MyTripsPage';
 import AdminPage from './pages/AdminPage';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import LandingPage from './pages/LandingPage';
+//import LandingPage2 from './pages/LandingPage2';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -50,6 +53,7 @@ function App() {
         <AuthProvider>
           <Routes>
             {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
