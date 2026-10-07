@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // CORRECT: No trailing slash to avoid double slashes
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'https://airbooking-production.up.railway.app';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
