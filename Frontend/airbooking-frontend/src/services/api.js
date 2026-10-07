@@ -1,11 +1,14 @@
 // src/services/api.js
 import axios from 'axios';
 
-// CORRECT: No trailing slash to avoid double slashes
-const API_BASE_URL = 'https://airbooking-production.up.railway.app';
+// Use environment variable, fallback to localhost for local development
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Add request interceptor to include token
@@ -17,16 +20,16 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login if it's a 401 AND we are not already on the login page
+    // (Prevents infinite redirect loops)
+    if (error.response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
@@ -34,14 +37,27 @@ api.interceptors.response.use(
   }
 );
 
+// --- Services ---
+
+// Auth services
+export const authService = {
+  login: async (username, password) => {
+    // Using the api instance here means it automatically uses the correct base URL
+    const response = await api.post('/api/auth/login/', { username, password });
+    return response.data;
+  },
+  register: async (userData) => {
+    const response = await api.post('/api/auth/register/', userData);
+    return response.data;
+  }
+};
+
 // Flight services
 export const flightService = {
   searchFlights: (params) => api.get('/flights/search/', { params }).then(response => {
-    // Normalize the response structure
     if (response.data && Array.isArray(response.data)) {
       return response;
     } else if (response.data && response.data.results && Array.isArray(response.data.results)) {
-      // If paginated, return the results array
       return { ...response, data: response.data.results };
     } else {
       console.warn('Unexpected flights response structure, returning empty array');
@@ -52,49 +68,25 @@ export const flightService = {
 };
 
 // Booking services
-// src/services/api.js - Update bookingService
 export const bookingService = {
   createBooking: async (bookingData) => {
     try {
-      console.log('Sending booking data:', bookingData);
-
-      const response = await axios.post(`${API_BASE_URL}/bookings/create/`, bookingData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 15000,
-      });
-
-      console.log('Booking response:', response.data);
+      const response = await api.post('/bookings/create/', bookingData, { timeout: 15000 });
       return { success: true, data: response.data };
-
     } catch (error) {
-      console.error('Booking API error:', error);
-
       const errorMessage = error.response?.data?.error ||
                           error.response?.data?.message ||
                           error.response?.data?.detail ||
-                          (typeof error.response?.data === 'object' ? JSON.stringify(error.response.data) : 'Booking failed. Please try again.');
-
-      return {
-        success: false,
-        error: errorMessage,
-        status: error.response?.status,
-        data: error.response?.data
-      };
+                          'Booking failed. Please try again.';
+      return { success: false, error: errorMessage, status: error.response?.status };
     }
   },
-
   getUserBookings: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/bookings/`);
+      const response = await api.get('/bookings/');
       return { success: true, data: response.data };
     } catch (error) {
-      console.error('Get bookings error:', error);
-      return {
-        success: false,
-        error: 'Failed to load bookings'
-      };
+      return { success: false, error: 'Failed to load bookings' };
     }
   }
 };
@@ -106,6 +98,5 @@ export const adminService = {
   getFlights: () => api.get('/admin/flights/'),
   updateFlightStatus: (flightId, status) => api.put(`/admin/flights/${flightId}/status/`, { status }),
 };
-
 
 export default api;
